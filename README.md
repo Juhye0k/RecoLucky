@@ -10,12 +10,13 @@
 ## 목차
 
 1. [빠른 시작](#빠른-시작)
-2. [파이프라인 아키텍처](#파이프라인-아키텍처)
-3. [설계 및 주요 가정](#설계-및-주요-가정)
-4. [한계 및 개선 아이디어](#한계-및-개선-아이디어)
-5. [출력 예시](#출력-예시)
-6. [프로젝트 구조](#프로젝트-구조)
-7. [테스트](#테스트)
+2. [실행 방법](#실행-방법)
+3. [파이프라인 아키텍처](#파이프라인-아키텍처)
+4. [설계 및 주요 가정](#설계-및-주요-가정)
+5. [한계 및 개선 아이디어](#한계-및-개선-아이디어)
+6. [출력 예시](#출력-예시)
+7. [프로젝트 구조](#프로젝트-구조)
+8. [테스트](#테스트)
 
 ---
 
@@ -58,6 +59,313 @@
 ```
 
 `lines[]`가 있으면 word별 confidence를 활용하고, 없으면 `text`를 줄바꿈 기준으로 fallback 처리합니다.
+
+---
+
+## 실행 방법
+
+> **`input.json`이란?** OCR 엔진(Google Document AI, Naver Clova OCR 등)이 계량증명서 이미지를 읽고 출력한 JSON 파일입니다. 이 파서는 OCR 결과를 입력받아 구조화된 데이터로 변환합니다.
+
+### 1. Gradle Wrapper로 실행 (개발 중)
+
+#### stdout 출력 (결과를 화면에 표시)
+
+```bash
+# input.json = OCR 엔진이 출력한 JSON 파일
+./gradlew run --args="input.json"
+```
+
+**로그와 JSON이 함께 출력됩니다:**
+
+```
+> Task :run
+
+20:15:23.313 INFO  [WeighbridgeParserApplication] - 파이프라인 시작: input.json
+20:15:23.525 INFO  [Preprocessor] - 전처리 완료: 입력 13줄 → 최종 11줄 (노이즈 삭제 0, 마킹 1, 병합 2건)
+20:15:23.531 INFO  [Extractor] - 라인 분류 완료: ISSUER_LINE=1, TIMESTAMP_LINE=1, ...
+20:15:23.569 INFO  [FieldAssigner] - 필드 할당 완료: 필드=[gross_weight, tare_weight, ...]
+20:15:23.572 INFO  [Normalizer] - 정규화 완료: 10개 필드
+20:15:23.574 INFO  [Validator] - 검증 완료: is_consistent=true, is_actionable=true
+{
+  "document_type": "계량증명서",
+  "source_file": "input.json",
+  "fields": {
+    "gross_weight": { "value": 12480, "unit": "kg", ... },
+    ...
+  }
+}
+20:15:23.619 INFO  [WeighbridgeParserApplication] - 파이프라인 완료: stdout 출력
+```
+
+**로그 없이 JSON만 출력하려면:**
+
+```bash
+./gradlew run --args="sample_01.json" --quiet
+```
+
+#### 파일 저장 (결과를 파일로 저장)
+
+```bash
+./gradlew run --args="sample_01.json output.json"
+```
+
+**출력:**
+```
+> Task :run
+
+20:15:23.313 INFO  [...] - 파이프라인 시작: input.json
+...
+20:15:23.619 INFO  [...] - 파이프라인 완료: 파일 출력 → output.json
+Written: output.json
+```
+
+`output.json` 파일이 생성됩니다.
+
+#### 다양한 입력 경로
+
+```bash
+# 상대 경로
+./gradlew run --args="examples/sample_01_input.json"
+
+# 절대 경로
+./gradlew run --args="/full/path/to/ocr_output.json"
+
+# 테스트 fixtures 사용
+./gradlew run --args="src/test/resources/fixtures/sample_01.json output.json"
+```
+
+### 2. JAR 파일로 실행 (배포용)
+
+#### JAR 빌드
+
+```bash
+./gradlew build
+
+# 생성 위치
+# build/libs/weighbridge-parser-1.0-SNAPSHOT.jar
+```
+
+#### JAR 실행
+
+```bash
+# stdout 출력
+java -jar build/libs/weighbridge-parser-1.0-SNAPSHOT.jar input.json
+
+# 파일 저장
+java -jar build/libs/weighbridge-parser-1.0-SNAPSHOT.jar input.json output.json
+```
+
+
+
+### 3. Windows 환경 (WSL/cmd.exe)
+
+#### WSL에서 실행
+
+```bash
+# gradlew는 WSL 환경에서 Java가 없으면 실패
+# gradlew.bat을 cmd.exe로 실행
+
+cd "/mnt/c/Users/kyoun/OneDrive/바탕 화면/프로젝트/ai/untitled1"
+cmd.exe /c "gradlew.bat run --args=\"input.json\""
+```
+
+#### Windows CMD에서 실행
+
+```cmd
+gradlew.bat run --args="input.json output.json"
+```
+
+#### PowerShell에서 실행
+
+```powershell
+.\gradlew.bat run --args="input.json output.json"
+```
+
+### 4. 실전 예시
+
+#### 예시 1: examples 디렉토리 샘플 처리
+
+```bash
+# 실제 OCR API 응답 형식 파일 사용
+./gradlew run --args="examples/sample_01_input.json result_01.json"
+
+# 결과 확인
+cat result_01.json | jq .validation
+```
+
+출력:
+```json
+{
+  "is_consistent": true,
+  "is_actionable": true,
+  "weight_arithmetic": {
+    "passed": true,
+    "gross": 12480,
+    "tare": 7470,
+    "net": 5010,
+    "expected_net": 5010,
+    "delta": 0
+  }
+}
+```
+
+#### 예시 2: 배치 처리 (여러 파일)
+
+```bash
+# Bash 반복문
+for file in examples/*.json; do
+  output="output/$(basename $file .json)_parsed.json"
+  ./gradlew run --args="$file $output" --quiet
+  echo "Processed: $file → $output"
+done
+```
+
+
+
+#### 예시 4: 파이프라인 연결 (전체 흐름)
+
+```bash
+# Step 1: 계량증명서 이미지를 OCR API로 전송
+curl -X POST https://ocr-api.example.com/parse \
+  -F "file=@weighbridge_image.jpg" \
+  -o ocr_output.json
+
+# ocr_output.json 내용 예시:
+# {
+#   "text": "계량증명서\n계량일자: 2026-02-02\n...",
+#   "lines": [...]
+# }
+
+# Step 2: OCR 결과를 파서로 구조화
+./gradlew run --args="ocr_output.json parsed.json" --quiet
+
+# parsed.json 내용 예시:
+# {
+#   "document_type": "계량증명서",
+#   "fields": {
+#     "gross_weight": { "value": 12480, "unit": "kg" },
+#     ...
+#   }
+# }
+
+# Step 3: 구조화된 데이터를 데이터베이스/API로 전송
+curl -X POST https://api.example.com/weighbridge \
+  -H "Content-Type: application/json" \
+  -d @parsed.json
+```
+
+### 5. 입력 파일 형식 상세
+
+
+일반적인 OCR 처리 흐름:
+```
+계량증명서 이미지 (JPG/PNG)
+    ↓
+OCR API (Google Document AI, Naver Clova, Tesseract 등)
+    ↓
+OCR 출력 JSON (input.json) ← 이 파서의 입력
+    ↓
+Weighbridge Parser
+    ↓
+구조화된 JSON (output.json)
+```
+
+#### 최소 형식 (text만)
+
+```json
+{
+  "text": "계량증명서\n계량일자: 2026-02-02\n차량번호: 8713\n총중량: 12,480 kg\n공차중량: 7,470 kg\n실중량: 5,010 kg"
+}
+```
+
+**사용 케이스:** 단순 텍스트 추출만 가능한 OCR 엔진 (Tesseract 기본 모드 등)
+
+#### 권장 형식 (lines + words + confidence)
+
+```json
+{
+  "text": "...",
+  "lines": [
+    {
+      "text": "총중량: 12,480 kg",
+      "words": [
+        { "text": "총중량:", "confidence": 0.98 },
+        { "text": "12,480", "confidence": 0.97 },
+        { "text": "kg", "confidence": 0.99 }
+      ]
+    }
+  ]
+}
+```
+
+**사용 케이스:** 상용 OCR API (Google Document AI, Naver Clova OCR, AWS Textract 등)
+
+**차이:**
+- `text`만: 라인 단위 confidence를 알 수 없음 (기본값 0.95 사용)
+- `lines[]` + `words[]`: 토큰별 confidence를 활용하여 노이즈 마킹, OCR 신뢰도 경고 가능
+
+#### 실제 OCR API 응답 (Google Document AI)
+
+`examples/sample_01_input.json` 참고 — boundingBox, metadata 등 전체 메타데이터 포함
+
+```json
+{
+  "apiVersion": "1.1",
+  "confidence": 0.9242,
+  "metadata": { "pages": [...] },
+  "pages": [{
+    "text": "계 량 증 명 서 ...",
+    "words": [
+      {
+        "text": "계",
+        "confidence": 0.9745,
+        "boundingBox": { "vertices": [...] }
+      },
+      ...
+    ],
+    "lines": [...]
+  }]
+}
+```
+
+**이 파서는 `boundingBox`, `metadata` 등을 무시하고 `text`와 `lines[]`만 사용합니다.**
+
+### 6. 출력 확인
+
+#### 브라우저에서 확인 (JSON 포맷팅)
+
+```bash
+# JSON 파일을 브라우저로 열기 (Chrome/Firefox)
+open output.json  # macOS
+xdg-open output.json  # Linux
+start output.json  # Windows
+```
+
+#### 터미널에서 확인 (jq)
+
+```bash
+# 예쁘게 출력
+cat output.json | jq .
+
+# 특정 필드만 확인
+cat output.json | jq .fields.gross_weight
+cat output.json | jq .validation
+cat output.json | jq '.fields | keys'  # 모든 필드명 나열
+```
+
+#### Python으로 확인
+
+```python
+import json
+
+with open('output.json') as f:
+    doc = json.load(f)
+
+print(f"문서 유형: {doc['document_type']}")
+print(f"총중량: {doc['fields']['gross_weight']['value']} kg")
+print(f"검증 통과: {doc['validation']['is_actionable']}")
+```
+
 
 ---
 
@@ -208,18 +516,13 @@ ML 모델을 사용하지 않으므로, 규칙으로 정의되지 않은 패턴�
 #### 단기 — 현 구조 내에서 개선
 
 - **양식 커버리지 확대**: 실제 현장 데이터를 수집하고 fixture로 추가하여 규칙의 견고성을 높일 수 있습니다.
-- **OCR bounding box 활용**: 좌표 정보를 활용하면 세로 배치나 비정형 레이아웃에서도 라인을 올바르게 재정렬할 수 있습니다.
-- **라벨-값 proximity scoring**: 물리적 위치 기반 매칭을 보강하면, 라벨이 깨져도 근접한 값과의 연관성으로 할당 정확도를 높일 수 있습니다.
 
 #### 중기 — 아키텍처 확장
 
 - **별칭 사전 자동 확장**: 운영 중 확인된 새 라벨을 자동으로 사전에 등록하는 피드백 루프를 구축할 수 있습니다.
 - **Confidence 기반 재촬영 요청**: `ocr_confidence`가 극히 낮은 필드가 있으면, 사용자에게 재촬영을 요청하는 흐름을 추가할 수 있습니다.
 
-#### 장기 — 패러다임 전환
 
-- **NER 모델 하이브리드**: 규칙이 실패한 케이스를 ML fallback으로 커버하는 2단계 구조를 구성할 수 있습니다. 규칙은 빠르고 설명 가능한 기본 경로, ML은 불확실한 경우의 보조 경로 역할입니다.
-- **REST API / 배치 처리**: CLI를 넘어 웹 서비스로 확장하면, 대량 문서 처리와 정확도 모니터링 대시보드를 제공할 수 있습니다.
 
 ---
 
@@ -249,17 +552,8 @@ ML 모델을 사용하지 않으므로, 규칙으로 정의되지 않은 패턴�
 }
 ```
 
-### 4종 샘플 결과 요약
-
-| 샘플 | 문서 유형 | 총중량 | 공차 | 실중량 | 산술 검증 | 추론 경로 |
-|:--|:--|--:|--:|--:|:--:|:--|
-| sample_01 | 계량증명서 | 12,480 | 7,470 | 5,010 | OK | arithmetic |
-| sample_02 | 계근표 | 13,460 | 7,560 | 5,900 | OK | label |
-| sample_03 | 계량확인서 | 14,080 | 13,950 | 130 | OK | label |
-| sample_04 | 계량증명표 | 14,230 | 12,910 | 1,320 | OK | arithmetic |
 
 ---
-
 ## 프로젝트 구조
 
 ```
@@ -284,36 +578,3 @@ src/main/java/com/weighbridge/parser/
     └── JsonWriter.java                # JSON 직렬화
 ```
 
----
-
-## 테스트
-
-```bash
-# 전체 테스트 실행 (164개)
-./gradlew test
-
-# 특정 테스트 클래스 실행
-./gradlew test --tests com.weighbridge.parser.IntegrationTest
-```
-
-### 테스트 구성
-
-| 테스트 | 검증 범위 |
-|:--|:--|
-| PreprocessorTest | 공백 정규화, 노이즈 마킹, 라인 병합 |
-| ExtractorTest | 라인 분류, 콜론 판정, guard rule, OCR 깨진 단위 |
-| FieldAssignerTest | 중량 파싱, 역할 할당, 산술 트리플, UNRESOLVED |
-| NormalizerTest | 날짜/시간/중량/단위 정규화 |
-| ValidatorTest | 산술 검증, 양수 검증, 날짜 유효성, 필수 필드 |
-| AliasMatchingUtilsTest | 별칭 매칭 점수 계산 |
-| OutputTest | JSON 출력 스키마 |
-| IntegrationTest | 4종 샘플 전체 파이프라인 통합 테스트 |
-
-### 검증 샘플
-
-| 샘플 | 주요 특성 |
-|:--|:--|
-| sample_01 | 기본형 (콜론 구분, GPS 포함, 타임스탬프) |
-| sample_02 | 공백 분리 중량 (`5 900`), 날짜-일련번호 동시 존재 |
-| sample_03 | 한글 시간 (`11시 33분`), 노이즈 토큰, TEL 라인 제외 |
-| sample_04 | 콜론 없는 양식, `No.` 구분자, 괄호 시간 `(09:09)` |
