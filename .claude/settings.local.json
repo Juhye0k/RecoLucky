@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./gradlew build:*)",
+      "Bash(export JAVA_HOME=\"/mnt/c/Program Files/Java/jdk-21\")",
+      "Bash(export PATH=\"$JAVA_HOME/bin:$PATH\")",
+      "Bash(cmd.exe /c \"gradlew.bat build\")",
+      "Bash(cmd.exe /c:*)",
+      "Bash(grep:*)",
+      "Bash(find:*)",
+      "Bash(ls:*)"
+    ]
+  }
+}

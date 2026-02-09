@@ -1,0 +1,109 @@
+{
+  "text": "계 량 증 명 서\n계량일자: 2026-02-02 0016\n차량번호: 8713\n거 래 처: 곰욕환경폐기물\n품종명랑 05:26:18 12,480 kg\n명:\n중 량:\n05:36:01 7,470 kg\n실 중 량: 5,010 kg\n* 위와 같이 계량하였음을 확인함.\n동우바이오(주)\n2026-02-02 05:37:55\n37.105317, 127.375673",
+  "lines": [
+    {
+      "text": "계 량 증 명 서",
+      "words": [
+        {"text": "계", "confidence": 0.9851},
+        {"text": "량", "confidence": 0.9723},
+        {"text": "증", "confidence": 0.9641},
+        {"text": "명", "confidence": 0.9502},
+        {"text": "서", "confidence": 0.9788}
+      ]
+    },
+    {
+      "text": "계량일자: 2026-02-02 0016",
+      "words": [
+        {"text": "계량일자:", "confidence": 0.9891},
+        {"text": "2026-02-02", "confidence": 0.9912},
+        {"text": "0016", "confidence": 0.9595}
+      ]
+    },
+    {
+      "text": "차량번호: 8713",
+      "words": [
+        {"text": "차량번호:", "confidence": 0.9756},
+        {"text": "8713", "confidence": 0.9683}
+      ]
+    },
+    {
+      "text": "거 래 처: 곰욕환경폐기물",
+      "words": [
+        {"text": "거", "confidence": 0.9201},
+        {"text": "래", "confidence": 0.9105},
+        {"text": "처:", "confidence": 0.9050},
+        {"text": "곰욕환경폐기물", "confidence": 0.5133}
+      ]
+    },
+    {
+      "text": "품종명랑 05:26:18 12,480 kg",
+      "words": [
+        {"text": "품종명랑", "confidence": 0.1857},
+        {"text": "05:26:18", "confidence": 0.9876},
+        {"text": "12,480", "confidence": 0.9812},
+        {"text": "kg", "confidence": 0.9799}
+      ]
+    },
+    {
+      "text": "명:",
+      "words": [
+        {"text": "명:", "confidence": 0.4210}
+      ]
+    },
+    {
+      "text": "중 량:",
+      "words": [
+        {"text": "중", "confidence": 0.9312},
+        {"text": "량:", "confidence": 0.9258}
+      ]
+    },
+    {
+      "text": "05:36:01 7,470 kg",
+      "words": [
+        {"text": "05:36:01", "confidence": 0.9567},
+        {"text": "7,470", "confidence": 0.9432},
+        {"text": "kg", "confidence": 0.9258}
+      ]
+    },
+    {
+      "text": "실 중 량: 5,010 kg",
+      "words": [
+        {"text": "실", "confidence": 0.9702},
+        {"text": "중", "confidence": 0.9648},
+        {"text": "량:", "confidence": 0.9590},
+        {"text": "5,010", "confidence": 0.9685},
+        {"text": "kg", "confidence": 0.9712}
+      ]
+    },
+    {
+      "text": "* 위와 같이 계량하였음을 확인함.",
+      "words": [
+        {"text": "*", "confidence": 0.8901},
+        {"text": "위와", "confidence": 0.9345},
+        {"text": "같이", "confidence": 0.9410},
+        {"text": "계량하였음을", "confidence": 0.9102},
+        {"text": "확인함.", "confidence": 0.9230}
+      ]
+    },
+    {
+      "text": "동우바이오(주)",
+      "words": [
+        {"text": "동우바이오(주)", "confidence": 0.9812}
+      ]
+    },
+    {
+      "text": "2026-02-02 05:37:55",
+      "words": [
+        {"text": "2026-02-02", "confidence": 0.9891},
+        {"text": "05:37:55", "confidence": 0.9586}
+      ]
+    },
+    {
+      "text": "37.105317, 127.375673",
+      "words": [
+        {"text": "37.105317,", "confidence": 0.8901},
+        {"text": "127.375673", "confidence": 0.8585}
+      ]
+    }
+  ]
+}
