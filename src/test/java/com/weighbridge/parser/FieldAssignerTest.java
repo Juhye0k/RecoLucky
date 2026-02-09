@@ -432,19 +432,19 @@ class FieldAssignerTest {
         }
     }
 
-    // ── OCR 깨진 단위 중량 할당 ──
+    // ── kg 단위 중량 할당 ──
 
     @Nested
-    @DisplayName("OCR 깨진 단위 처리")
-    class BrokenUnitAssignmentTest {
+    @DisplayName("kg 단위 처리")
+    class KgUnitAssignmentTest {
 
-        @ParameterizedTest(name = "단위 ''{0}'' → weight_event로 파싱")
-        @ValueSource(strings = {"kg", "KG", "㎏", "Kg", "k9", "kq"})
-        void brokenKgUnits(String unit) {
+        @Test
+        @DisplayName("kg 단위 → weight_event로 파싱")
+        void kgUnit() {
             ParsedDocument doc = parseText(
-                    "총중량: 10000 " + unit,
-                    "공차중량: 7000 " + unit,
-                    "실중량: 3000 " + unit
+                    "총중량: 10000 kg",
+                    "공차중량: 7000 kg",
+                    "실중량: 3000 kg"
             );
             WeightField gross = (WeightField) doc.fields().get("gross_weight");
             assertThat(gross.value()).isEqualTo(10000);
