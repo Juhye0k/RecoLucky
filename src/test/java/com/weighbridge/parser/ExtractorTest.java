@@ -125,65 +125,6 @@ class ExtractorTest {
         }
     }
 
-    // ── Guard rule ──
-
-    @Nested
-    @DisplayName("Guard rule")
-    class GuardRuleTest {
-
-        @Test
-        @DisplayName("단가/kg당 → weight_event 아님")
-        void guardRules() {
-            assertThat(classifyText("단가: 12,000원/kg").get(0).type())
-                    .isNotEqualTo(LineType.WEIGHT_EVENT);
-            assertThat(classifyText("kg당 15,000원").get(0).type())
-                    .isNotEqualTo(LineType.WEIGHT_EVENT);
-        }
-    }
-
-    // ── OCR 깨진 단위 ──
-
-    @Nested
-    @DisplayName("OCR 깨진 kg 단위")
-    class BrokenKgTest {
-
-        @Test
-        @DisplayName("다양한 kg 변형 인식")
-        void brokenKgVariants() {
-            assertThat(Extractor.hasKgUnit("12,480 ㎏")).isTrue();
-            assertThat(Extractor.hasKgUnit("12,480 KG")).isTrue();
-            assertThat(Extractor.hasKgUnit("12,480 k9")).isTrue();
-            assertThat(Extractor.hasKgUnit("12,480 kq")).isTrue();
-            assertThat(Extractor.hasKgUnit("12,480 K G")).isTrue();
-        }
-    }
-
-    // ── 약후보 승격 ──
-
-    @Nested
-    @DisplayName("약후보 테스트")
-    class CandidateTest {
-
-        @Test
-        @DisplayName("kg 없는 단독 라인 → weight_event 미확정")
-        void noKgAlone() {
-            List<ClassifiedLine> lines = classifyText("02:07 13460");
-            assertThat(lines.get(0).type()).isNotEqualTo(LineType.WEIGHT_EVENT);
-        }
-
-        @Test
-        @DisplayName("승격 A: kg 있는 라인 + ±2 라인에 중량 라벨 힌트")
-        void promotionA() {
-            List<ClassifiedLine> lines = classifyText(
-                    "총중량: 12,480 kg",
-                    "공차중량:",
-                    "02:07 7560"
-            );
-            assertThat(findLineContaining(lines, "7560").type())
-                    .isEqualTo(LineType.WEIGHT_EVENT);
-        }
-    }
-
     // ── issuer 과탐 방지 ──
 
     @Nested
@@ -193,7 +134,7 @@ class ExtractorTest {
         @Test
         @DisplayName("negative lexicon / 주소 / 전화번호 → issuer 아님")
         void negativePatterns() {
-            assertThat(classifyText("C&S 관리팀").get(0).type())
+            assertThat(classifyText("C&S TEL").get(0).type())
                     .isNotEqualTo(LineType.ISSUER_LINE);
             assertThat(classifyText("(주)한진 경기도 용인시 처인구").get(0).type())
                     .isNotEqualTo(LineType.ISSUER_LINE);

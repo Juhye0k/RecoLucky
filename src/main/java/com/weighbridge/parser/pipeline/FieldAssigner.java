@@ -28,7 +28,7 @@ public class FieldAssigner {
             Pattern.compile("(?<![:\\d])(\\d{1,3}[,]\\d{3}|\\d{1,3}\\s\\d{3}|\\d{3,6})(?![:\\d])");
 
     private static final Pattern KG_UNIT_PATTERN =
-            Pattern.compile("(kg|㎏|KG|Kg|k9|kq|K\\s*G|k\\s*g)(?![가-힣a-zA-Z])");
+            Pattern.compile("(kg)(?![가-힣a-zA-Z])");
 
     private static final Pattern COLON_SPLIT_PATTERN =
             Pattern.compile("^(.+?)[:：]\\s*(.*)$", Pattern.DOTALL);

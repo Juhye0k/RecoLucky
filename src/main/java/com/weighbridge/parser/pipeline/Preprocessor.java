@@ -42,12 +42,11 @@ public class Preprocessor {
 
     // Weight value pattern A: time + digits + kg unit
     private static final Pattern WEIGHT_VALUE_PATTERN_A =
-            Pattern.compile("\\d{1,2}:\\d{2}(:\\d{2})?\\s+[\\d,\\s]{3,}\\s*"
-                    + "(kg|㎏|KG|Kg|k9|kq|K\\s*G|k\\s*g)");
+            Pattern.compile("\\d{1,2}:\\d{2}(:\\d{2})?\\s+[\\d,\\s]{3,}\\s*kg");
 
     // Weight value pattern B: digits + kg unit (no time)
     private static final Pattern WEIGHT_VALUE_PATTERN_B =
-            Pattern.compile("[\\d,\\s]{3,}\\s*(kg|㎏|KG|Kg|k9|kq|K\\s*G|k\\s*g)");
+            Pattern.compile("[\\d,\\s]{3,}\\s*kg");
 
     // Non-weight labels that should not trigger merging
     private static final Set<String> NON_WEIGHT_LABELS = Set.of(

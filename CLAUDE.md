@@ -15,7 +15,7 @@
 ## 핵심 설계 원칙
 
 1. **Value-First Classification**: 라벨보다 값 패턴(kg 단위, 날짜, GPS 등)을 먼저 판별하여 라인 유형 결정. 라벨은 세부 필드 구분 힌트로만 사용
-2. **엄격한 중량 확정**: kg 단위가 사실상 필수. time+정수만으로는 약후보(candidate)로만 취급
+2. **엄격한 중량 확정**: kg 단위 필수. kg 없는 라인은 중량으로 분류하지 않음
 3. **미확정 허용(UNRESOLVED)**: 공차/실중량 구분 불확실 시 억지 할당 금지. `weight_roles_unresolved: true`로 출력
 4. **추론 경로 기록(Provenance)**: 각 중량 필드에 `inferred_by`(LABEL/ARITHMETIC) 기록
 5. **노이즈 마킹**: 저신뢰 토큰을 삭제하지 않고 `is_noise_candidate` 플래그만 부여
@@ -46,11 +46,9 @@ OCR JSON → Preprocessor → Extractor → FieldAssigner → Normalizer → Val
 - 분류 우선순위:
   - 콜론 + kg → `WEIGHT_EVENT`
   - 콜론 + kg 없음 → `LABEL_VALUE_LINE`
-  - 콜론 없음 → TIMESTAMP > GPS > WEIGHT_EVENT(kg+digits) > 약후보(time+digits) > DATE > ISSUER > ETC
-- **weight_event 확정**: kg/㎏/KG + 3~6자리 정수 + guard rule 통과 ("원/kg", "kg당", "단가" 제외)
-- **OCR 깨진 단위 인식**: k9, kq, K G, k g, KG, ㎏, Kg → 모두 kg
-- **약후보 승격 (Path A)**: 문서 내 확정 kg ≥1 + ±2 라인에 중량 라벨 힌트(≥50점) → 승격. 미충족 → ETC_LINE 강등
-- **issuer 판정**: (주)/(株)/㈜/Co./C&S 패턴 + 주소/전화/우편번호/negative lexicon 제외
+  - 콜론 없음 → TIMESTAMP > GPS > WEIGHT_EVENT(kg+digits) > DATE > ISSUER > ETC
+- **weight_event 확정**: kg + 3~6자리 정수
+- **issuer 판정**: (주)/C&S 패턴 + 주소/전화/negative lexicon 제외
 
 ### 3. FieldAssigner (필드 할당) — `FieldAssigner.java`
 - **Step 2-1**: weight_event에서 시간·중량값 분리, WeightCandidate 생성
@@ -68,10 +66,10 @@ OCR JSON → Preprocessor → Extractor → FieldAssigner → Normalizer → Val
 - **confidence**: ocr_confidence = 값 토큰 min(confidence), assignment_confidence = label→1.0 / arithmetic→0.9
 
 ### 4. Normalizer (값 정규화) — `Normalizer.java`
-- **날짜**: `YYYY-MM-DD` (구분자 `.`/`/` → `-` 통일)
+- **날짜**: `YYYY-MM-DD` (일련번호 분리)
 - **시간**: `HH:MM:SS` (분만 있으면 `:00` 패딩, 한글 `시/분` → 콜론)
 - **타임스탬프**: 날짜+시간 분리 후 각각 정규화
-- **중량**: 정수 int (콤마/공백 제거, 소수점 반올림)
+- **중량**: 정수 int (콤마/공백 제거)
 - **단위**: 소문자 `"kg"` 통일
 - `raw_value`는 항상 원본 보존
 
@@ -98,7 +96,7 @@ weighbridge-parser/
 │   ├── config/
 │   │   ├── AliasMatchingUtils.java          # String.contains() 기반 매칭
 │   │   ├── FieldAliases.java                # 라벨 별칭 사전
-│   │   └── Thresholds.java                  # 임계값 상수 12개
+│   │   └── Thresholds.java                  # 임계값 상수 11개
 │   ├── model/
 │   │   ├── OcrInput.java                    # OCR JSON 입력 (text, lines[], words[])
 │   │   ├── BaseField.java                   # 일반 필드 record
@@ -153,10 +151,10 @@ BaseField + `unit`, `time`, `assignment_confidence`, `inferred_by`
 
 ```java
 // FIELD_ALIASES
-"measurement_date" → ["계량일자", "날짜", "일시", "계량일"]
+"measurement_date" → ["계량일자", "날짜", "일시"]
 "vehicle_number"   → ["차량번호", "차번호", "차량No"]
 "customer"         → ["거래처", "상호", "회사명"]
-"product_name"     → ["품명", "품종명", "품목"]
+"product_name"     → ["품명"]
 "category"         → ["구분"]
 
 // WEIGHT_ALIASES
@@ -165,7 +163,7 @@ BaseField + `unit`, `time`, `assignment_confidence`, `inferred_by`
 "net_weight"   → ["실중량"]
 
 // DOC_TYPE_ALIASES
-["계량증명서", "계근표", "계량확인서", "계량증명표", "계근증명서"]
+["계량증명서", "계근표", "계량확인서", "계량증명표"]
 ```
 
 ## 임계값 — `Thresholds.java`
@@ -174,7 +172,7 @@ BaseField + `unit`, `time`, `assignment_confidence`, `inferred_by`
 |------|-----|------|
 | NOISE_DELETE_THRESHOLD | 0.1 | 삭제 대상 |
 | NOISE_MARK_THRESHOLD | 0.3 | 노이즈 마킹 |
-| DEFAULT_CONFIDENCE | 0.95 | word 없을 때 기본값 |
+| DEFAULT_CONFIDENCE | 1.0 | word 없을 때 기본값 |
 | OCR_CONF_WARNING | 0.7 | OCR 저신뢰 WARNING 기준 |
 | FUZZY_LABEL_CONFIRM | 85 | 라벨 확정 (완전일치) |
 | FUZZY_LABEL_WEAK | 50 | 라벨 약매칭 (포함 관계) |
@@ -198,7 +196,6 @@ java -jar weighbridge-parser.jar input.json output.json
 
 - **매직넘버 금지**: 모든 임계값은 `Thresholds.java`에 집중
 - **시간 순서는 확정 근거로 사용 금지**: 참고 자료로만 활용 (업체마다 관행 다름)
-- **guard rule**: "원/kg", "kg당", "단가" 포함 라인은 weight_event에서 제외
 - **삭제보다 마킹**: 저신뢰 토큰은 삭제하지 않고 플래그만 부여
 - **UNRESOLVED는 severity 없음**: 문서 레벨 `is_actionable=false`로 표현
 - **ERROR도 severity 없음**: status 자체가 충분한 신호

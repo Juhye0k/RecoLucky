@@ -11,7 +11,7 @@
 ## 1. 핵심 특징
 
 - **값 패턴 우선 분류(Value-First Classification)**: 라벨보다 값의 패턴(kg 단위, 날짜, GPS 등)을 먼저 판별하여 라인의 유형을 결정. 라벨은 세부 필드 구분 힌트로만 사용.
-- **엄격한 중량 확정**: kg 단위 존재를 weight_event 확정의 사실상 필수 조건으로 설정. time+정수만으로는 약후보(candidate)로만 취급.
+- **엄격한 중량 확정**: kg 단위 필수. kg 없는 라인은 중량으로 분류하지 않음.
 - **미확정 허용(UNRESOLVED)**: 공차/실중량 구분이 불확실하면 억지로 할당하지 않고 UNRESOLVED 상태로 출력. 산술은 맞지만 의미가 틀린 "조용한 오류"를 원천 방지.
 - **추론 경로 기록(Provenance)**: 각 중량 필드에 `inferred_by`(label/arithmetic)를 기록하여 할당 근거를 추적 가능.
 - **노이즈 마킹(삭제 아닌 마킹)**: 저신뢰 토큰을 삭제하지 않고 플래그만 부여하여 정보 손실 방지.
@@ -133,14 +133,14 @@ weighbridge-parser/
 │   │   ├── ValidationResult.java             # 검증 결과 record (32줄)
 │   │   └── ResolutionHint.java               # UNRESOLVED 힌트 record (22줄)
 │   ├── pipeline/
-│   │   ├── Preprocessor.java                 # 텍스트 전처리 (280줄)
-│   │   ├── Extractor.java                    # 라인 분류 (181줄)
-│   │   ├── LineType.java                     # 라인 유형 enum (25줄)
-│   │   ├── ClassifiedLine.java               # 분류된 라인 record (26줄)
+│   │   ├── Preprocessor.java                 # 텍스트 전처리 (292줄)
+│   │   ├── Extractor.java                    # 라인 분류 (138줄)
+│   │   ├── LineType.java                     # 라인 유형 enum (26줄)
+│   │   ├── ClassifiedLine.java               # 분류된 라인 record (23줄)
 │   │   ├── WeightCandidate.java              # 중량 후보 record (26줄)
-│   │   ├── FieldAssigner.java                # 필드 추출 및 역할 할당 (707줄)
-│   │   ├── Normalizer.java                   # 값 정규화 (288줄)
-│   │   └── Validator.java                    # 교차 검증 (295줄)
+│   │   ├── FieldAssigner.java                # 필드 추출 및 역할 할당 (718줄)
+│   │   ├── Normalizer.java                   # 값 정규화 (223줄)
+│   │   └── Validator.java                    # 교차 검증 (302줄)
 │   ├── config/
 │   │   ├── FieldAliases.java                 # 라벨 별칭 사전 (36줄)
 │   │   ├── AliasMatchingUtils.java           # String.contains() 기반 매칭 (75줄)
@@ -148,14 +148,14 @@ weighbridge-parser/
 │   └── output/
 │       └── JsonWriter.java                   # JSON 출력 (52줄)
 └── src/test/java/com/weighbridge/parser/
-    ├── PreprocessorTest.java                 # (204줄)
-    ├── ExtractorTest.java                    # (234줄)
-    ├── FieldAssignerTest.java                # (505줄)
-    ├── NormalizerTest.java                   # (397줄)
-    ├── ValidatorTest.java                    # (353줄)
-    ├── AliasMatchingUtilsTest.java           # (82줄)
-    ├── IntegrationTest.java                  # (401줄)
-    ├── OutputTest.java                       # (94줄)
+    ├── PreprocessorTest.java                 # (205줄)
+    ├── ExtractorTest.java                    # (176줄)
+    ├── FieldAssignerTest.java                # (506줄)
+    ├── NormalizerTest.java                   # (274줄)
+    ├── ValidatorTest.java                    # (354줄)
+    ├── AliasMatchingUtilsTest.java           # (83줄)
+    ├── IntegrationTest.java                  # (387줄)
+    ├── OutputTest.java                       # (95줄)
     └── fixtures/
         ├── sample_01.json
         ├── sample_02.json
@@ -236,7 +236,7 @@ Line 8: "05:36:01 7,470 kg"  ← 값만 있고 라벨 없음
 
 ---
 
-### 6.2 Extractor (181줄) — 라인 분류
+### 6.2 Extractor (138줄) — 라인 분류
 
 #### 역할
 
@@ -253,25 +253,23 @@ Line 8: "05:36:01 7,470 kg"  ← 값만 있고 라벨 없음
 **콜론이 없는 경우** (우선순위 순):
 1. `TIMESTAMP_LINE`: `YYYY-MM-DD HH:MM:SS` 패턴
 2. `GPS_LINE`: 위도/경도 좌표 패턴
-3. `WEIGHT_EVENT`: kg + 3~6자리 정수 + guard rule 통과
+3. `WEIGHT_EVENT`: kg + 3~6자리 정수
 4. `DATE_LINE`: 날짜 패턴 (YYYY.MM.DD 등)
-5. `ISSUER_LINE`: (주)/(株)/Co./C&S 패턴 + negative lexicon 통과
+5. `ISSUER_LINE`: (주)/C&S 패턴 + negative lexicon 통과
 6. `ETC_LINE`: 위 어느 것에도 해당하지 않음
 
 #### weight_event 확정 조건
 
-- **확정**: kg/㎏/KG + 3~6자리 정수 + guard rule 통과
-- **약후보 승격**: 동일 문서 내 kg 1회 이상 + ±2 라인에 중량 라벨 힌트(≥ 50점)
-- **OCR 깨진 단위**: k9, kq, K G, k g, KG, ㎏, Kg → 모두 kg로 인정
-- **guard rule**: `원/kg`, `kg당`, `단가` 포함 라인은 weight_event에서 제외
+- **확정**: kg + 3~6자리 정수
+- kg 단위 없는 라인은 중량으로 분류하지 않음
 
 #### issuer 과탐 방지
 
-negative lexicon: 관리팀, 담당, 센터, TEL, FAX, 대표자, 주소, 사업자, 전화 등이 포함된 라인은 issuer로 분류하지 않음.
+negative lexicon: TEL, FAX, 차량, 품명이 포함된 라인은 issuer로 분류하지 않음.
 
 ---
 
-### 6.3 FieldAssigner (707줄) — 필드 추출 및 역할 할당
+### 6.3 FieldAssigner (718줄) — 필드 추출 및 역할 할당
 
 #### 역할
 
@@ -344,7 +342,7 @@ OCR confidence가 낮으면(< 0.7) inferred_by와 무관하게 WARNING 추가.
 
 ---
 
-### 6.4 Normalizer (288줄) — 값 정규화
+### 6.4 Normalizer (223줄) — 값 정규화
 
 #### 역할
 
@@ -354,14 +352,14 @@ OCR confidence가 낮으면(< 0.7) inferred_by와 무관하게 WARNING 추가.
 
 | 필드 | 입력 예시 | 출력 | 규칙 |
 |------|-----------|------|------|
-| 날짜 | `2026.02.02`, `2026/02/02` | `2026-02-02` | 구분자 → `-` 통일 |
+| 날짜 | `2026-02-02-00004` | `2026-02-02` | 일련번호 분리 |
 | 시간 | `05시26분`, `05:26`, `5:26:18` | `05:26:00`, `05:26:18` | 한글 시/분 → 콜론, 분만 있으면 `:00` 패딩, 1자리 시 → 0패딩 |
-| 중량 | `12,480`, `5 010`, `12480.5` | `12480`, `5010`, `12481` | 콤마/공백 제거, 소수점 반올림 |
-| 단위 | `㎏`, `KG`, `k9`, `kq`, `Kg` | `kg` | 소문자 `"kg"` 통일 |
+| 중량 | `12,480`, `5 010` | `12480`, `5010` | 콤마/공백 제거 |
+| 단위 | `kg` | `kg` | 소문자 `"kg"` 통일 |
 
 ---
 
-### 6.5 Validator (295줄) — 교차 검증
+### 6.5 Validator (302줄) — 교차 검증
 
 #### 역할
 
@@ -421,10 +419,10 @@ score(input, alias):
 
 ```java
 // FIELD_ALIASES — 일반 필드
-"measurement_date" → ["계량일자", "날짜", "일시", "계량일"]
+"measurement_date" → ["계량일자", "날짜", "일시"]
 "vehicle_number"   → ["차량번호", "차번호", "차량No"]
 "customer"         → ["거래처", "상호", "회사명"]
-"product_name"     → ["품명", "품종명", "품목"]
+"product_name"     → ["품명"]
 "category"         → ["구분"]
 
 // WEIGHT_ALIASES — 중량 필드
@@ -433,7 +431,7 @@ score(input, alias):
 "net_weight"   → ["실중량"]
 
 // DOC_TYPE_ALIASES — 문서 유형
-["계량증명서", "계근표", "계량확인서", "계량증명표", "계근증명서"]
+["계량증명서", "계근표", "계량확인서", "계량증명표"]
 ```
 
 새 양식 대응 시 이 사전에 별칭만 추가하면 됨.
@@ -511,7 +509,7 @@ score(input, alias):
 | `ParsedDocument` | record | documentType, sourceFile, fields, unassignedWeights, extraWeights, resolutionHint, validation |
 | `ValidationResult` | record | isConsistent, isActionable, weightRolesUnresolved, messages |
 | `ProcessedLine` | record | text, lineIndex, ocrConfidence, isNoiseCandidate |
-| `ClassifiedLine` | record | ProcessedLine 래핑 + type, isCandidate |
+| `ClassifiedLine` | record | ProcessedLine 래핑 + type |
 | `WeightCandidate` | record | weight, time, unit, rawLabel, ocrConfidence, lineIndex |
 | `ResolutionHint` | record | unassignedWeights, message |
 
@@ -534,16 +532,15 @@ score(input, alias):
 |------|-----|------|
 | `NOISE_DELETE_THRESHOLD` | 0.1 | 극단적 노이즈 삭제 기준 |
 | `NOISE_MARK_THRESHOLD` | 0.3 | 노이즈 후보 마킹 기준 |
+| `DEFAULT_CONFIDENCE` | 1.0 | word 없을 때 기본값 |
 | `OCR_CONF_WARNING` | 0.7 | OCR 신뢰도 경고 |
-| `OCR_CONF_WARNING_HIGH` | 0.4 | OCR 극저 신뢰도 경고 |
 | `FUZZY_LABEL_CONFIRM` | 85 | 라벨 확정 점수 |
 | `FUZZY_LABEL_WEAK` | 50 | 라벨 약매칭 점수 |
-| `FUZZY_DOC_TYPE` | 80 | 문서 유형 매칭 점수 |
 | `WEIGHT_DIGITS_MIN` | 3 | 중량 숫자 최소 자릿수 |
 | `WEIGHT_DIGITS_MAX` | 6 | 중량 숫자 최대 자릿수 |
-| `CANDIDATE_RANGE` | 2 | 약후보 승격 탐색 범위 (±라인) |
-| `ARITHMETIC_TOLERANCE` | 1 | 산술 검증 허용 오차 |
-| `HEURISTIC_SCORE_THRESHOLD` | 3.0 | 보조 단서 할당 임계값 |
+| `ASSIGNMENT_CONF_LABEL` | 1.0 | 라벨 할당 신뢰도 |
+| `ASSIGNMENT_CONF_ARITHMETIC` | 0.9 | 산술 할당 신뢰도 |
+| `DOC_TYPE_SEARCH_LIMIT` | 3 | 문서 유형 탐색 라인 수 |
 
 ---
 
@@ -551,11 +548,11 @@ score(input, alias):
 
 | 구분 | 파일 수 | 줄 수 |
 |------|---------|-------|
-| 메인 소스 | 23 | 2,416 |
-| 테스트 | 8 | 2,270 |
-| **합계** | **31** | **4,686** |
+| 메인 소스 | 23 | ~2,100 |
+| 테스트 | 8 | ~2,080 |
+| **합계** | **31** | **~4,180** |
 
-가장 큰 파일: FieldAssigner.java (707줄) — 중량 역할 할당 로직
+가장 큰 파일: FieldAssigner.java (718줄) — 중량 역할 할당 로직
 테스트 대 코드 비율: 약 1:1
 
 ---
@@ -593,14 +590,14 @@ java -jar weighbridge-parser.jar input.json output.json
 
 | 테스트 파일 | 줄 수 | 테스트 대상 |
 |-------------|-------|-------------|
-| `IntegrationTest` | 401 | 4종 샘플 전체 파이프라인 통과 |
-| `FieldAssignerTest` | 505 | 중량 파싱, 트리플 선택, 역할 할당, UNRESOLVED |
-| `NormalizerTest` | 397 | 날짜/시간/중량/단위 정규화 엣지 케이스 |
-| `ValidatorTest` | 353 | 산술 검증, 날짜 유효성, 필수 필드 |
-| `ExtractorTest` | 234 | 라인 분류, guard rule, 약후보 승격 |
-| `PreprocessorTest` | 204 | 공백 정규화, 노이즈 마킹, 라인 병합 |
-| `OutputTest` | 94 | JSON 직렬화 |
-| `AliasMatchingUtilsTest` | 82 | 매칭 점수 계산 |
+| `IntegrationTest` | 387 | 4종 샘플 전체 파이프라인 통과 |
+| `FieldAssignerTest` | 506 | 중량 파싱, 트리플 선택, 역할 할당, UNRESOLVED |
+| `NormalizerTest` | 274 | 날짜/시간/중량/단위 정규화 엣지 케이스 |
+| `ValidatorTest` | 354 | 산술 검증, 날짜 유효성, 필수 필드 |
+| `ExtractorTest` | 176 | 라인 분류, issuer 과탐 방지 |
+| `PreprocessorTest` | 205 | 공백 정규화, 노이즈 마킹, 라인 병합 |
+| `OutputTest` | 95 | JSON 직렬화 |
+| `AliasMatchingUtilsTest` | 83 | 매칭 점수 계산 |
 
 ---
 

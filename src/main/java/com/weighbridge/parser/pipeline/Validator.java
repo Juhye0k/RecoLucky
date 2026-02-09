@@ -47,7 +47,7 @@ public class Validator {
 
         // 규칙 5: 필수 필드
         boolean docRequired = checkDocumentRequiredFields(updatedFields, fieldWarnings);
-        boolean autoRequired = checkAutoProcessingFields(updatedFields, fieldWarnings);
+        boolean autoRequired = checkAutoProcessingFields(gross, tare, net, fieldWarnings);
 
         // 문서 레벨 판정
         boolean arithmeticPassed = weightArithmetic != null
@@ -55,8 +55,7 @@ public class Validator {
 
         if (!docRequired) isConsistent = false;
         if (!dateValid) isConsistent = false;
-        if (weightArithmetic != null && !arithmeticPassed
-                && gross.value() != null && tare.value() != null && net.value() != null) {
+        if (weightArithmetic != null && !arithmeticPassed) {
             isConsistent = false;
         }
         if (hasErrorStatus(updatedFields)) isConsistent = false;
@@ -64,7 +63,6 @@ public class Validator {
         if (!isConsistent) isActionable = false;
         if (!autoRequired) isActionable = false;
         if (weightRolesUnresolved) isActionable = false;
-        if (hasErrorStatus(updatedFields)) isActionable = false;
 
         Map<String, String> inferencePath = doc.validation() != null
                 ? doc.validation().weightInferencePath() : null;
@@ -228,12 +226,9 @@ public class Validator {
         return ok;
     }
 
-    private boolean checkAutoProcessingFields(Map<String, Object> fields, List<String> warnings) {
+    private boolean checkAutoProcessingFields(WeightField gross, WeightField tare,
+                                               WeightField net, List<String> warnings) {
         boolean ok = true;
-
-        WeightField gross = getWeight(fields, "gross_weight");
-        WeightField tare = getWeight(fields, "tare_weight");
-        WeightField net = getWeight(fields, "net_weight");
 
         if (!hasWeightField(gross)) {
             warnings.add("자동처리 필수 필드 누락/미확정: gross_weight");

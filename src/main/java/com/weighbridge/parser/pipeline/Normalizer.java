@@ -11,16 +11,12 @@ import java.util.regex.Pattern;
 /**
  * Step 3: 값 정규화.
  *
- * 날짜, 시간, 중량, 단위, 텍스트를 정규화한다.
+ * 날짜, 시간, 중량, 단위를 정규화한다.
  * raw_value는 항상 원본 보존.
  */
 public class Normalizer {
 
     private static final Logger log = LoggerFactory.getLogger(Normalizer.class);
-
-    // ── 날짜 패턴: YYYY.MM.DD 또는 YYYY/MM/DD ──
-    private static final Pattern DATE_SEPARATOR_PATTERN =
-            Pattern.compile("(\\d{4})[./](\\d{2})[./](\\d{2})");
 
     // ── 날짜 뒤 일련번호 제거: YYYY-MM-DD-NNNNN ──
     private static final Pattern DATE_WITH_SERIAL_PATTERN =
@@ -37,24 +33,6 @@ public class Normalizer {
     // ── 시간 1자리 시간: H:MM:SS ──
     private static final Pattern TIME_SINGLE_HOUR_PATTERN =
             Pattern.compile("^(\\d):(\\d{2})(:\\d{2})?$");
-
-    // ── 단위 정규화 매핑 ──
-    private static final Pattern UNIT_NORMALIZE_PATTERN =
-            Pattern.compile("㎏|KG|Kg|k9|kq|K\\s*G|k\\s*g");
-
-    // ── 텍스트 법인 표기 패턴 ──
-    private static final Pattern CORP_PATTERN =
-            Pattern.compile("\\(주\\)|\\(株\\)|㈜");
-
-    private final boolean normalizeText;
-
-    public Normalizer() {
-        this(false);
-    }
-
-    public Normalizer(boolean normalizeText) {
-        this.normalizeText = normalizeText;
-    }
 
     // ─────────────────────────────────────────────
     //  공개 API
@@ -97,14 +75,9 @@ public class Normalizer {
             return wf;
         }
 
-        // 중량값 정규화 (이미 int이지만 확인)
         Integer normalizedValue = wf.value();
-
-        // 시간 정규화
         String normalizedTime = wf.time() != null ? normalizeTime(wf.time()) : null;
-
-        // 단위 정규화
-        String normalizedUnit = normalizeUnit(wf.unit());
+        String normalizedUnit = "kg";
 
         return new WeightField(
                 normalizedValue, normalizedUnit, normalizedTime,
@@ -127,11 +100,7 @@ public class Normalizer {
         switch (fieldName) {
             case "measurement_date" -> normalizedValue = normalizeDate(bf.value());
             case "issued_at" -> normalizedValue = normalizeTimestamp(bf.value());
-            default -> {
-                if (normalizeText) {
-                    normalizedValue = normalizeTextValue(bf.value());
-                }
-            }
+            default -> { /* 정규화 대상 아님 */ }
         }
 
         return new BaseField(
@@ -146,16 +115,10 @@ public class Normalizer {
     // ─────────────────────────────────────────────
 
     /**
-     * 날짜를 YYYY-MM-DD 형식으로 통일.
+     * 날짜를 YYYY-MM-DD 형식으로 통일. 일련번호 분리.
      */
     public static String normalizeDate(String date) {
         if (date == null) return null;
-
-        // ./ 구분자 → -
-        Matcher m = DATE_SEPARATOR_PATTERN.matcher(date);
-        if (m.find()) {
-            date = m.replaceFirst("$1-$2-$3");
-        }
 
         // 일련번호 분리: YYYY-MM-DD-NNNNN → YYYY-MM-DD
         Matcher sm = DATE_WITH_SERIAL_PATTERN.matcher(date);
@@ -222,12 +185,6 @@ public class Normalizer {
     private String normalizeTimestamp(String timestamp) {
         if (timestamp == null) return null;
 
-        // 날짜 부분 정규화
-        Matcher dateMatcher = DATE_SEPARATOR_PATTERN.matcher(timestamp);
-        if (dateMatcher.find()) {
-            timestamp = dateMatcher.replaceFirst("$1-$2-$3");
-        }
-
         // 시간 부분이 있으면 정규화
         String[] parts = timestamp.split("\\s+", 2);
         if (parts.length == 2) {
@@ -249,12 +206,6 @@ public class Normalizer {
     public static int normalizeWeight(String raw) {
         if (raw == null) return 0;
         String cleaned = raw.replaceAll("[,\\s]", "");
-
-        // 소수점 처리
-        if (cleaned.contains(".")) {
-            return (int) Math.round(Double.parseDouble(cleaned));
-        }
-
         return Integer.parseInt(cleaned);
     }
 
@@ -266,29 +217,6 @@ public class Normalizer {
      * 단위를 소문자 "kg"로 통일.
      */
     public static String normalizeUnit(String unit) {
-        if (unit == null) return "kg";
-        String trimmed = unit.replaceAll("\\s+", "").trim();
-        if (UNIT_NORMALIZE_PATTERN.matcher(trimmed).matches()
-                || "kg".equalsIgnoreCase(trimmed)
-                || "㎏".equals(trimmed)) {
-            return "kg";
-        }
-        return "kg"; // 기본값
-    }
-
-    // ─────────────────────────────────────────────
-    //  텍스트 약한 정규화 (3-5, 옵션)
-    // ─────────────────────────────────────────────
-
-    /**
-     * 텍스트 약한 정규화 (--normalize-text 활성화 시).
-     */
-    public static String normalizeTextValue(String text) {
-        if (text == null) return null;
-        // 법인 표기 제거
-        text = CORP_PATTERN.matcher(text).replaceAll("");
-        // 연속 공백 → 단일 공백
-        text = text.replaceAll("\\s+", " ").trim();
-        return text;
+        return "kg";
     }
 }

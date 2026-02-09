@@ -309,21 +309,6 @@ class IntegrationTest {
             }
         }
 
-        @Test
-        @DisplayName("guard rule: '단가: 12,000원/kg' → weight_event 아님")
-        void guardRule() {
-            ParsedDocument doc = pipelineFromText(
-                    "계량증명서",
-                    "계량일자: 2026-01-15",
-                    "차량번호: 1234",
-                    "단가: 12,000원/kg",
-                    "총중량: 10000 kg",
-                    "공차중량: 7000 kg",
-                    "실중량: 3000 kg"
-            );
-            WeightField gross = (WeightField) doc.fields().get("gross_weight");
-            assertThat(gross.value()).isEqualTo(10000);
-        }
     }
 
     // ── UNRESOLVED / 4개 이상 중량 ──
@@ -390,11 +375,11 @@ class IntegrationTest {
                     "총중량: 10000 kg",
                     "공차중량: 7000 kg",
                     "실중량: 3000 kg",
-                    "C&S 관리팀"
+                    "C&S 품명"
             );
             BaseField issuer = (BaseField) doc.fields().get("issuer");
             if (issuer != null) {
-                assertThat(issuer.value()).doesNotContain("관리팀");
+                assertThat(issuer.value()).doesNotContain("품명");
             }
         }
     }

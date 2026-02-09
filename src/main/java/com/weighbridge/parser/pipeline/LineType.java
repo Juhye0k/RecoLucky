@@ -10,7 +10,7 @@ package com.weighbridge.parser.pipeline;
  *   <li>{@code TIMESTAMP_LINE} — YYYY-MM-DD HH:MM:SS (발행 시각)</li>
  *   <li>{@code GPS_LINE} — 소수점 좌표 (GPS)</li>
  *   <li>{@code DATE_LINE} — YYYY-MM-DD 단독 (날짜)</li>
- *   <li>{@code ISSUER_LINE} — (주)/(株)/Co. 등 발행사</li>
+ *   <li>{@code ISSUER_LINE} — (주)/C&S 등 발행사</li>
  *   <li>{@code ETC_LINE} — 위에 해당하지 않는 기타 라인</li>
  * </ul>
  */

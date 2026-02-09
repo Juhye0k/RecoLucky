@@ -23,18 +23,6 @@ class NormalizerTest {
     class DateNormalizationTest {
 
         @Test
-        @DisplayName("'2025.12.01' → '2025-12-01'")
-        void dotSeparator() {
-            assertThat(Normalizer.normalizeDate("2025.12.01")).isEqualTo("2025-12-01");
-        }
-
-        @Test
-        @DisplayName("'2025/12/01' → '2025-12-01'")
-        void slashSeparator() {
-            assertThat(Normalizer.normalizeDate("2025/12/01")).isEqualTo("2025-12-01");
-        }
-
-        @Test
         @DisplayName("'2026-02-02' → 변경 없음")
         void alreadyNormalized() {
             assertThat(Normalizer.normalizeDate("2026-02-02")).isEqualTo("2026-02-02");
@@ -119,18 +107,6 @@ class NormalizerTest {
         void normalComma() {
             assertThat(Normalizer.normalizeWeight("12,480")).isEqualTo(12480);
         }
-
-        @Test
-        @DisplayName("'1234.56' → 1235 (반올림)")
-        void decimalRounding() {
-            assertThat(Normalizer.normalizeWeight("1234.56")).isEqualTo(1235);
-        }
-
-        @Test
-        @DisplayName("'1234.4' → 1234 (반올림 내림)")
-        void decimalRoundingDown() {
-            assertThat(Normalizer.normalizeWeight("1234.4")).isEqualTo(1234);
-        }
     }
 
     // ── 단위 정규화 ──
@@ -140,64 +116,15 @@ class NormalizerTest {
     class UnitNormalizationTest {
 
         @Test
-        @DisplayName("'㎏' → 'kg'")
-        void specialKg() {
-            assertThat(Normalizer.normalizeUnit("㎏")).isEqualTo("kg");
-        }
-
-        @Test
-        @DisplayName("'KG' → 'kg'")
-        void uppercaseKg() {
-            assertThat(Normalizer.normalizeUnit("KG")).isEqualTo("kg");
-        }
-
-        @Test
-        @DisplayName("'k9' → 'kg'")
-        void k9() {
-            assertThat(Normalizer.normalizeUnit("k9")).isEqualTo("kg");
-        }
-
-        @Test
-        @DisplayName("'Kg' → 'kg'")
-        void mixedCaseKg() {
-            assertThat(Normalizer.normalizeUnit("Kg")).isEqualTo("kg");
+        @DisplayName("'kg' → 'kg'")
+        void normalKg() {
+            assertThat(Normalizer.normalizeUnit("kg")).isEqualTo("kg");
         }
 
         @Test
         @DisplayName("null → 'kg'")
         void nullUnit() {
             assertThat(Normalizer.normalizeUnit(null)).isEqualTo("kg");
-        }
-    }
-
-    // ── 텍스트 정규화 (옵션) ──
-
-    @Nested
-    @DisplayName("3-5: 텍스트 약한 정규화")
-    class TextNormalizationTest {
-
-        @Test
-        @DisplayName("법인 표기 제거: '동우바이오(주)' → '동우바이오'")
-        void removeCorp() {
-            assertThat(Normalizer.normalizeTextValue("동우바이오(주)")).isEqualTo("동우바이오");
-        }
-
-        @Test
-        @DisplayName("㈜ 제거: '㈜한진' → '한진'")
-        void removeCorpSymbol() {
-            assertThat(Normalizer.normalizeTextValue("㈜한진")).isEqualTo("한진");
-        }
-
-        @Test
-        @DisplayName("연속 공백 → 단일 공백")
-        void multipleSpaces() {
-            assertThat(Normalizer.normalizeTextValue("계량   증명서")).isEqualTo("계량 증명서");
-        }
-
-        @Test
-        @DisplayName("null → null")
-        void nullInput() {
-            assertThat(Normalizer.normalizeTextValue(null)).isNull();
         }
     }
 
@@ -211,7 +138,7 @@ class NormalizerTest {
         @DisplayName("WeightField 시간 정규화 (5:26 → 05:26:00)")
         void weightFieldTimeNormalization() {
             WeightField wf = new WeightField(
-                    12480, "KG", "5:26",
+                    12480, "kg", "5:26",
                     "총중량", "12,480", 0.95, 1.0, InferredBy.LABEL,
                     FieldStatus.OK, null, null, 0
             );
@@ -232,9 +159,9 @@ class NormalizerTest {
         }
 
         @Test
-        @DisplayName("BaseField 날짜 정규화 (2025.12.01 → 2025-12-01)")
+        @DisplayName("BaseField 날짜 정규화 (이미 '-' 구분자)")
         void baseFieldDateNormalization() {
-            BaseField bf = BaseField.ok("2025.12.01", "계량일자", "2025.12.01", 0.95, 0);
+            BaseField bf = BaseField.ok("2026-02-02-00004", "계량일자", "2026-02-02-00004", 0.95, 0);
             Map<String, Object> fields = new LinkedHashMap<>();
             fields.put("measurement_date", bf);
             fields.put("gross_weight", WeightField.missing());
@@ -248,47 +175,7 @@ class NormalizerTest {
             ParsedDocument normalized = normalizer.normalize(doc);
 
             BaseField result = (BaseField) normalized.fields().get("measurement_date");
-            assertThat(result.value()).isEqualTo("2025-12-01");
-        }
-
-        @Test
-        @DisplayName("텍스트 정규화 OFF (기본) → 값 변경 없음")
-        void textNormalizationOff() {
-            BaseField bf = BaseField.ok("동우바이오(주)", null, "동우바이오(주)", 0.95, 0);
-            Map<String, Object> fields = new LinkedHashMap<>();
-            fields.put("issuer", bf);
-            fields.put("gross_weight", WeightField.missing());
-            fields.put("tare_weight", WeightField.missing());
-            fields.put("net_weight", WeightField.missing());
-
-            ParsedDocument doc = new ParsedDocument(
-                    null, "test", fields, List.of(), List.of(), null, null
-            );
-            Normalizer normalizer = new Normalizer(false);
-            ParsedDocument normalized = normalizer.normalize(doc);
-
-            BaseField result = (BaseField) normalized.fields().get("issuer");
-            assertThat(result.value()).isEqualTo("동우바이오(주)");
-        }
-
-        @Test
-        @DisplayName("텍스트 정규화 ON → 법인 표기 제거")
-        void textNormalizationOn() {
-            BaseField bf = BaseField.ok("동우바이오(주)", null, "동우바이오(주)", 0.95, 0);
-            Map<String, Object> fields = new LinkedHashMap<>();
-            fields.put("issuer", bf);
-            fields.put("gross_weight", WeightField.missing());
-            fields.put("tare_weight", WeightField.missing());
-            fields.put("net_weight", WeightField.missing());
-
-            ParsedDocument doc = new ParsedDocument(
-                    null, "test", fields, List.of(), List.of(), null, null
-            );
-            Normalizer normalizer = new Normalizer(true);
-            ParsedDocument normalized = normalizer.normalize(doc);
-
-            BaseField result = (BaseField) normalized.fields().get("issuer");
-            assertThat(result.value()).isEqualTo("동우바이오");
+            assertThat(result.value()).isEqualTo("2026-02-02");
         }
 
         @Test
@@ -320,11 +207,8 @@ class NormalizerTest {
 
         @ParameterizedTest(name = "날짜 ''{0}'' → ''{1}''")
         @CsvSource({
-                "2025.12.01, 2025-12-01",
-                "2025/12/01, 2025-12-01",
                 "2025-12-01, 2025-12-01",
-                "2026.01.15, 2026-01-15",
-                "2026/01/15, 2026-01-15"
+                "2026-02-02, 2026-02-02"
         })
         void dateVariations(String input, String expected) {
             assertThat(Normalizer.normalizeDate(input)).isEqualTo(expected);
@@ -341,14 +225,6 @@ class NormalizerTest {
         })
         void timeVariations(String input, String expected) {
             assertThat(Normalizer.normalizeTime(input)).isEqualTo(expected);
-        }
-
-        @ParameterizedTest(name = "단위 ''{0}'' → ''kg''")
-        @CsvSource({
-                "kg", "KG", "Kg", "㎏", "k9", "kq"
-        })
-        void unitVariations(String input) {
-            assertThat(Normalizer.normalizeUnit(input)).isEqualTo("kg");
         }
 
         @ParameterizedTest(name = "중량 ''{0}'' → {1}")
