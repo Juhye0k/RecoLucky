@@ -15,11 +15,11 @@ sequenceDiagram
     App->>Pre: process(OcrInput)
 
     Note over Pre: Step 1. 라인 분리<br/>Step 2. 한글 자모 공백 제거<br/>Step 3. 노이즈 마킹 (삭제/플래그)<br/>Step 4. 라인 병합
-    Pre-->>App: List&lt;ProcessedLine&gt;
+    Pre-->>App: List of ProcessedLine
 
     App->>Ext: classifyLines(processedLines)
     Note over Ext: Value-First 라인 분류<br/>→ 약후보 승격/강등
-    Ext-->>App: List&lt;ClassifiedLine&gt;
+    Ext-->>App: List of ClassifiedLine
 
     App->>FA: assign(classifiedLines, sourceFile)
     Note over FA: 중량 후보 파싱<br/>→ 3중량 세트 선택<br/>→ 역할 할당 (라벨→산술→UNRESOLVED)<br/>→ 라벨:값 필드 할당<br/>→ 기타 라인 처리
